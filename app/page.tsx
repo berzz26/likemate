@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Music, Loader2 } from 'lucide-react'
+import { Music, Loader2, LogOut } from 'lucide-react'
 import { track } from '@vercel/analytics'
 
 // You'll need to replace these with your actual Spotify App credentials
@@ -38,6 +38,13 @@ export default function SpotifyPlaylistCreator() {
     window.location.href = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=${encodeURIComponent(scopes)}&response_type=token`
     // Track login attempt
     track('spotify_login_attempt')
+  }
+
+  const handleLogout = () => {
+    setAccessToken(null)
+    setMessage('')
+    // Track logout
+    track('spotify_logout')
   }
 
   const createPlaylist = async () => {
@@ -149,6 +156,10 @@ export default function SpotifyPlaylistCreator() {
                 ) : (
                   'Create Playlist'
                 )}
+              </Button>
+              <Button onClick={handleLogout} variant="outline" className="w-full">
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
               </Button>
             </div>
           )}
