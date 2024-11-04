@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Music, Loader2 } from 'lucide-react'
+import { track } from '@vercel/analytics'
 
 // You'll need to replace these with your actual Spotify App credentials
 const CLIENT_ID = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID
@@ -26,6 +27,8 @@ export default function SpotifyPlaylistCreator() {
         setAccessToken(token)
         // Clear the hash from the URL
         window.location.hash = ''
+        // Track successful login
+        track('spotify_login_success')
       }
     }
   }, [])
@@ -33,14 +36,16 @@ export default function SpotifyPlaylistCreator() {
   const handleLogin = () => {
     const scopes = 'user-library-read playlist-modify-public'
     window.location.href = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=${encodeURIComponent(scopes)}&response_type=token`
+    // Track login attempt
+    track('spotify_login_attempt')
   }
 
   const createPlaylist = async () => {
     if (!accessToken) return
-  
+
     setIsCreating(true)
     setMessage('')
-  
+
     try {
       // Get user ID
       const userResponse = await fetch('https://api.spotify.com/v1/me', {
@@ -48,7 +53,7 @@ export default function SpotifyPlaylistCreator() {
       })
       const userData: { id: string } = await userResponse.json()
       const userId = userData.id
-  
+
       // Create a new playlist
       const createPlaylistResponse = await fetch(`https://api.spotify.com/v1/users/${userId}/playlists`, {
         method: 'POST',
@@ -64,11 +69,11 @@ export default function SpotifyPlaylistCreator() {
       })
       const playlistData: { id: string } = await createPlaylistResponse.json()
       const playlistId = playlistData.id
-  
+
       // Get liked songs
       let tracks: string[] = []
       let next: string | null = 'https://api.spotify.com/v1/me/tracks?limit=50'
-  
+
       while (next) {
         const likedSongsResponse = await fetch(next, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -80,7 +85,7 @@ export default function SpotifyPlaylistCreator() {
         tracks = [...tracks, ...likedSongsData.items.map((item) => item.track.uri)]
         next = likedSongsData.next
       }
-  
+
       // Add tracks to the playlist (in batches of 100)
       for (let i = 0; i < tracks.length; i += 100) {
         const batch = tracks.slice(i, i + 100)
@@ -93,11 +98,17 @@ export default function SpotifyPlaylistCreator() {
           body: JSON.stringify({ uris: batch })
         })
       }
-  
+
       setMessage(`Successfully created playlist "${playlistName}" with ${tracks.length} tracks!`)
+      
+      // Track the playlist creation event
+      track('playlist_created', { name: playlistName, trackCount: tracks.length })
     } catch (error) {
       console.error('Error creating playlist:', error)
       setMessage('An error occurred while creating the playlist. Please try again.')
+      
+      // Track the error event
+      track('playlist_creation_error', { error: (error as Error).message })
     } finally {
       setIsCreating(false)
     }
